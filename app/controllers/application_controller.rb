@@ -4,7 +4,7 @@ class ApplicationController < ActionController::Base
 
   def authenticate!
     if Rails.env.development?
-      sign_in User.first unless current_user.present?
+     sign_in User.first unless current_user.present?
     end
     authenticate_user!
   end

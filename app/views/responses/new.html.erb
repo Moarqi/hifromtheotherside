@@ -2,32 +2,32 @@
   <div class="form-group">
     <div class="row">
       <div class="col-lg-6">
-        <%= label_tag(:first_name, "First Name") %>
-        <%= text_field(:user, :first_name, readonly: true, class: 'form-control') %>
+        <%= label_tag(:first_name, "Vorname") %>
+        <%= text_field(:user, :first_name, readonly: false, class: 'form-control', required: true) %>
       </div>
       <div class="col-lg-6">
-        <%= label_tag(:last_name, "Last Name") %>
-        <%= text_field(:user, :last_name, readonly: true, class: 'form-control') %>
+        <%= label_tag(:last_name, "Nachname") %>
+        <%= text_field(:user, :last_name, readonly: false, class: 'form-control', required: true) %>
       </div>
     </div>
   </div>
   <div class="form-group required">
-    <%= label_tag(:email, "Email Address") %>
+    <%= label_tag(:email, "Email Addresse") %>
     <p class="help-block">If you get matched, we'll send an email introducing you two.</p>
     <%= text_field(:user, :email, class: 'form-control', required: true) %>
   </div>
   <div class="form-group required">
-    <%= label_tag(:zip, "Zip Code") %>
+    <%= label_tag(:zip, "Postleitzahl") %>
     <p class="help-block">Enter your zip code if you want the chance to be matched with someone close to you for a face-to-face conversation.</p>
     <%= text_field(:user, :zip, class: 'form-control', pattern: '\d{5}') %>
   </div>
   <div class="form-group required">
-    <%= label_tag(:supported, "In this election, I supported:") %>
+    <%= label_tag(:supported, "Ich wähle:") %>
     <p class="help-block">Please pick one even if you did not vote.</p>
     <%= select(:user, :supported, User.supporteds.keys.map { |k| [User::SUPPORTED_CANDIDATES[k], k] }.shuffle, { include_blank: true }, { class: 'form-control', required: true }) %>
   </div>
   <div class="form-group required">
-    <%= label_tag(:desired, "I would like to speak to:") %>
+    <%= label_tag(:desired, "Ich würde gerne mit jemandem sprechen, der folgende Partei unterstützt:") %>
     <%= select(:user, :desired, User.desireds.keys.map { |k| [User::DESIRED_CANDIDATES[k], k] }.shuffle, { include_blank: true }, { class: 'form-control', required: true }) %>
   </div>
   <div class="form-group required">

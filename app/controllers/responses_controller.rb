@@ -6,7 +6,7 @@ class ResponsesController < ApplicationController
     if current_user.present? && current_user.supported.blank?
       redirect_to action: :new
     elsif current_user.blank?
-      redirect_to user_facebook_omniauth_authorize_path
+      #redirect_to user_facebook_omniauth_authorize_path
     end
   end
 
@@ -17,6 +17,8 @@ class ResponsesController < ApplicationController
   def create
     current_user.update user_params
     if current_user.valid?
+      current_user.longitude
+      current_user.latitude
       current_user.save!
       flash[:notice] = "Preferences saved!"
       redirect_to action: :index
@@ -29,6 +31,6 @@ class ResponsesController < ApplicationController
   private
 
   def user_params
-    params.require(:user).permit(:zip, :supported, :desired, :background, :email)
+    params.require(:user).permit(:first_name, :last_name, :zip, :supported, :desired, :background, :email)
   end
 end

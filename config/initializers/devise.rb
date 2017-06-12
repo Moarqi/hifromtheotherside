@@ -221,7 +221,7 @@ Devise.setup do |config|
   # config.default_scope = :user
 
   # Set this configuration to false if you want /users/sign_out to sign out
-  # only the current scope. By default, Devise signs out all scopes.
+  # only the current scope.omniauth_callbacks By default, Devise signs out all scopes.
   # config.sign_out_all_scopes = true
 
   # ==> Navigation configuration
@@ -243,7 +243,7 @@ Devise.setup do |config|
   # up on your models and hooks.
   # config.omniauth :github, 'APP_ID', 'APP_SECRET', scope: 'user,public_repo'
 
-  config.omniauth :facebook, ENV['APP_ID'], ENV['APP_SECRET'], scope: 'public_profile, email', info_fields: 'name, email'
+  #config.omniauth :facebook, ENV['APP_ID'], ENV['APP_SECRET'], scope: 'public_profile, email', info_fields: 'name, email'
 
   # ==> Warden configuration
   # If you want to use other strategies, that are not supported by Devise, or

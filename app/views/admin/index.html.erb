@@ -50,7 +50,8 @@
         <td>Zip</td>
         <td>Supported</td>
         <td>Desired</td>
-        <td>Starbucks</td>
+        <td>longitude</td>
+        <td>latitude</td>
         <% if @paired %>
           <td>Status</td>
         <% else %>
@@ -67,7 +68,11 @@
           <td><%= user.zip %></td>
           <td><%= user.supported.titleize %></td>
           <td><%= user.desired.titleize %></td>
+          <td><%= user.longitude %></td>
+          <td><%= user.latitude %></td>
+          <% if false %>
           <td><%= user.nearest_starbucks.present? ? "&#10003;".html_safe : "&#10007;".html_safe %></td>
+          <% end %>
           <% if @paired %>
             <td><%= user.pairings.last.status %></td>
           <% else %>

@@ -1,0 +1,8 @@
+Integration von Worpress login als authenticate_user!
+
+
+lib/location.rb as reference to nearest user
+
+
+google geocoding api key:
+AIzaSyDwoiXKmUW3RQFZUm-Z4ud8LwC3GUA7qwI

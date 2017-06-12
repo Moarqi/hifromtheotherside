@@ -13,7 +13,7 @@ class User < ActiveRecord::Base
   validates :background, presence: true, if: :completed?
   validates :subscribe, inclusion: [true, false]
   validates :zip, numericality: { only_integer: true, allow_blank: true }
-
+# TODO: Keywords finden, nach denen gematched werden kann
   KEY_WORDS = %w(
     chef diplomat fireman teacher veteran vet
     engineer pilot artist dancer entrepreneur
@@ -25,7 +25,7 @@ class User < ActiveRecord::Base
     christian muslim jew
     york francisco boston
   )
-
+# TODO: Kriterien finden eg, parteiunterstützung etc.
   SUPPORTED_CANDIDATES = {
     trump: "Donald Trump",
     clinton: "Hillary Clinton",
@@ -33,7 +33,7 @@ class User < ActiveRecord::Base
     johnson: "Gary Johnson",
     other: "Other",
   }.with_indifferent_access
-
+#TODO: siehe oben!
   DESIRED_CANDIDATES = {
     trump: "a Donald Trump supporter",
     clinton: "a Hillary Clinton supporter",
@@ -48,23 +48,35 @@ class User < ActiveRecord::Base
   scope :paired, -> { with_pairings.where('pairings.id IS NOT NULL').order(:id).select('DISTINCT ON (users.id) users.*') }
   scope :unpaired, -> { with_pairings.where('pairings.id IS NULL') }
   scope :completed, -> { where.not(desired: nil, supported: nil) }
-  scope :zip_starts_with, ->(zip_prefix) { where("users.zip LIKE '#{zip_prefix}%'") }
 
-  def self.from_omniauth(auth)
-    graph = Koala::Facebook::API.new(auth.credentials.token)
-    info = graph.get_object("me", fields: 'first_name, last_name, email')
+  #scope :zip_starts_with, ->(zip_prefix) { where("users.zip LIKE '#{zip_prefix}%'") }
+  #scope :nearest, -> (longitude, latitude) {where("users.latitude LIKE '#{latitude_prefix}%' AND users.longitude LIKE '#{longitude_prefix}'")}
+  # scope :order_by_distance, lambda { |lng, lat, distance|  distance_formula = "(6371 * sqrt(((#{lng}-users.longitude)*cos((#{lat}+users.latitude)/2)^2+(#{lat}-users.latitude)^2))"
+  #   { select: "unpaired.*, #{distance_formula} AS distance",
+  #     where: "#{distance_formula} < #{distance}",
+  #     order: "distance ASCs"
+  #   }
+  # }
 
-    from_email = where(email: info['email']).first
-    if from_email.present?
-      from_email.update! provider: auth.provider, uid: auth.uid
-      return from_email
-    end
+  #scope :order_by_distance, -> (lng, lat, distance) { unpaired.sum("6371 * sqrt(((#{lng}-users.longitude)*cos((#{lat}+users.latitude)/2)^2+(#{lat}-users.latitude)^2) AS distance").where("distance < '#{distance}%'").order(:distance)  }
+  scope :with_distance, -> (lng, lat, distance) { unpaired.select("Users.*, 6371 * sqrt(((#{lng}-users.longitude)*cos((#{lat}+users.latitude)/2))^2+(#{lat}-users.latitude)^2) as distance").where("6371 * sqrt(((#{lng}-users.longitude)*cos((#{lat}+users.latitude)/2))^2+(#{lat}-users.latitude)^2) < #{distance}").order("distance ASC")}
 
-    where(provider: auth.provider, uid: auth.uid).first_or_create! do |user|
-      user.assign_attributes info.slice('first_name', 'last_name', 'email')
-      user.password = Devise.friendly_token[0,20]
-    end
-  end
+  #scope :selected_distance, -> (lng, lat, distance) { with_distance(lng, lat).where("distance < #{distance}").order(:distance)}
+  # def self.from_omniauth(auth)
+  #   graph = Koala::Facebook::API.new(auth.credentials.token)
+  #   info = graph.get_object("me", fields: 'first_name, last_name, email')
+  #
+  #   from_email = where(email: info['email']).first
+  #   if from_email.present?
+  #     from_email.update! provider: auth.provider, uid: auth.uid
+  #     return from_email
+  #   end
+  #
+  #   where(provider: auth.provider, uid: auth.uid).first_or_create! do |user|
+  #     user.assign_attributes info.slice('first_name', 'last_name', 'email')
+  #     user.password = Devise.friendly_token[0,20]
+  #   end
+  # end
 
   def self.in_zip_range(start, finish, scope=all)
     scope.select {|u| u.zip.to_i >= start && u.zip.to_i <= finish }
@@ -136,9 +148,36 @@ class User < ActiveRecord::Base
     !supported.to_sym.in? [:trump, :clinton]
   end
 
-  def nearest_starbucks
+  # def nearest_starbucks
+  #   return nil unless zip.present?
+  #   Rails.cache.fetch("#{cache_key}/nearest_starbucks", expires_in: 1.week) { Location.new(zip).nearest_starbucks }
+  # end
+
+  #define location data which is then used for pairing as in germany, we unfortunately cannot match via zip-code
+  def longitude
     return nil unless zip.present?
-    Rails.cache.fetch("#{cache_key}/nearest_starbucks", expires_in: 1.week) { Location.new(zip).nearest_starbucks }
+    @longitude ||= begin
+      long = Rails.cache.fetch("#{cache_key}/longitude", expires_in: 1.month) {Location.new(zip).latlng['lng']}
+    rescue
+      long = nil
+    end
+    if long != nil
+      update(longitude: long)
+    end    
+    long
+  end
+
+  def latitude
+    return nil unless zip.present?
+    @latitude ||= begin
+      lat = Rails.cache.fetch("#{cache_key}/latitude", expires_in: 1.month) {Location.new(zip).latlng['lat']}
+    rescue
+      lat = nil
+    end
+    if lat != nil
+      update(latitude: lat)
+    end
+    lat
   end
 
   private
@@ -151,6 +190,11 @@ class User < ActiveRecord::Base
     scope.order("@(COALESCE(NULLIF(zip, ''), '1000000')::int - #{zip.to_i})")
   end
 
+  def order_by_distance(scope)
+    scope.order("distance ASC")
+  end
+
+
   def find_pairing
     scope = self.class
       .unpaired
@@ -158,30 +202,38 @@ class User < ActiveRecord::Base
       .where(desired: supported_to_desired)
       .where.not(id: self.id)
 
-    # Similar zip
-    if self.zip.present?
-      zip_scope = scope.zip_starts_with(self.zip.to_s[0..-3])
-      scope = zip_scope if zip_scope.count > 0
-    end
+    #Similar zip
+    # if self.zip.present?
+    #   zip_scope = scope.zip_starts_with(self.zip.to_s[0..-3])
+    #   scope = zip_scope if zip_scope.count > 0
+    # end
+
+    # if @longitude.present? and @latitude.present?
+      distance_scope = scope.with_distance(@longitude, @latitude, 20)
+      #selected_distance_scope = scope.selected_distance(self.longitude, self.latitude, 10)
+      scope = distance_scope if distance_scope.size > 0
+    # end
 
     # Combinations of keywords
     words = key_words
     while words.present?
       search = scope.advanced_search(background: words.join('&'))
-      return order_by_zip(search).first if search.present?
+      #return order_by_zip(search).first if search.present?
+      return search.first if search.present?
       words.pop
     end
 
     # Each individual keyword
     key_words.each do |word|
       search = scope.basic_search(background: word)
-      return order_by_zip(search).first if search.present?
+      #return order_by_zip(search).first if search.present?
+      return search.first if search.present?
     end
 
     # Fallback to closest
-    order_by_zip(scope).first
+    scope.first
   end
-
+#TODO: anpassen
   def desired_to_supported
     case desired.to_sym
     when :trump
