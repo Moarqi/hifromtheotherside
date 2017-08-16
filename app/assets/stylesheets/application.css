@@ -12,8 +12,8 @@
  *
  *= require_tree .
  *= require_self
+ *= require bootstrap_and_overrides
  */
-
 .form-group.required label:after {
   content:"*";
   color:red;
